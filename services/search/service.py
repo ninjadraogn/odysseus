@@ -1,11 +1,12 @@
 # services/search/service.py
 """Search service — clean interface for web search."""
 
+import asyncio
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
 
 from . import (
-    comprehensive_web_search,
+    searxng_search_results,
     fetch_webpage_content,
     get_search_config,
 )
@@ -42,7 +43,8 @@ class SearchService:
 
     def __init__(self, default_depth: int = 1, fetch_content: bool = True):
         self.default_depth = default_depth
-        self.fetch_content = fetch_content
+        # Stored under a distinct name so it doesn't shadow the fetch_content() method.
+        self.fetch_content_default = fetch_content
 
     async def search(
         self,
@@ -62,22 +64,23 @@ class SearchService:
             SearchResponse with results
         """
         depth = depth or self.default_depth
-        fetch_content = fetch_content if fetch_content is not None else self.fetch_content
+        do_fetch = fetch_content if fetch_content is not None else self.fetch_content_default
 
-        # Use existing search implementation
-        raw_results = await comprehensive_web_search(
-            query,
-            max_results=10 * depth,
-            fetch_content=fetch_content,
-        )
+        # searxng_search_results is synchronous (blocking I/O) and returns a
+        # list of {url, title, snippet} dicts — run it off the event loop.
+        raw_results = await asyncio.to_thread(searxng_search_results, query, 10 * depth)
 
         results = []
         for r in raw_results:
+            content = None
+            url = r.get("url", "")
+            if do_fetch and url:
+                content = await self.fetch_content(url)
             results.append(SearchResult(
-                url=r.get("url", ""),
+                url=url,
                 title=r.get("title", ""),
                 snippet=r.get("snippet", ""),
-                content=r.get("content"),
+                content=content,
             ))
 
         return SearchResponse(
@@ -87,8 +90,11 @@ class SearchService:
         )
 
     async def fetch_content(self, url: str) -> Optional[str]:
-        """Fetch content from a URL."""
-        return await fetch_webpage_content(url)
+        """Fetch the extracted text content from a URL, or None on failure."""
+        result = await asyncio.to_thread(fetch_webpage_content, url)
+        if isinstance(result, dict):
+            return result.get("content") if result.get("success") else None
+        return result
 
     def get_config(self) -> Dict[str, Any]:
         """Get current search configuration."""

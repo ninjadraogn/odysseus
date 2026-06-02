@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from typing import List, Optional
+from urllib.parse import parse_qs, unquote, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -298,6 +299,29 @@ def _brave_search_impl(query: str, count: int, time_filter: Optional[str] = None
 
 # ── DuckDuckGo (free, no key) ──
 
+def _unwrap_ddg_url(url: str) -> str:
+    """Resolve DuckDuckGo's redirect-wrapper hrefs to the real target URL.
+
+    The HTML endpoint returns links like
+    ``//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2F&rut=...`` — a
+    protocol-relative redirect with the actual destination URL-encoded in the
+    ``uddg`` query param. Left as-is these can't be fetched, so unwrap them.
+    """
+    if not url:
+        return url
+    # Normalize protocol-relative URLs so urlparse can read the netloc.
+    parse_target = "https:" + url if url.startswith("//") else url
+    parsed = urlparse(parse_target)
+    if parsed.netloc.endswith("duckduckgo.com") and parsed.path.startswith("/l/"):
+        target = parse_qs(parsed.query).get("uddg", [""])[0]
+        if target:
+            return unquote(target)
+    # Plain protocol-relative link to a real site — just add a scheme.
+    if url.startswith("//"):
+        return "https:" + url
+    return url
+
+
 def duckduckgo_search(query: str, count: int = 10, time_filter: Optional[str] = None) -> List[dict]:
     """Search using DuckDuckGo via the duckduckgo-search library. No API key needed."""
     def _html_fallback() -> List[dict]:
@@ -315,7 +339,7 @@ def duckduckgo_search(query: str, count: int = 10, time_filter: Optional[str] = 
                 link = result.select_one(".result__a")
                 if not link:
                     continue
-                url = link.get("href", "")
+                url = _unwrap_ddg_url(link.get("href", ""))
                 if not url:
                     continue
                 snippet_el = result.select_one(".result__snippet")

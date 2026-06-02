@@ -3,6 +3,11 @@ uvicorn
 python-multipart
 python-dotenv
 httpx
+# Browser-impersonating HTTP client used for webpage fetches in search/research
+# (src/search/content.py). Mimics a real browser's TLS/HTTP fingerprint so
+# anti-bot edges (e.g. Wikimedia) don't 403 us the way they do plain httpx.
+# Optional at runtime — the fetcher falls back to httpx if it's missing.
+curl_cffi
 pydantic
 pydantic-settings
 SQLAlchemy

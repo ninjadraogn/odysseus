@@ -24,6 +24,53 @@ from .cache import (
 
 logger = logging.getLogger(__name__)
 
+# Prefer curl_cffi as the HTTP client: it impersonates a real browser's TLS/HTTP
+# fingerprint (JA3/JA4), getting past anti-bot edges (e.g. Wikimedia's) that
+# fingerprint and 403 a plain httpx client regardless of headers. Falls back to
+# httpx when curl_cffi isn't installed.
+try:
+    from curl_cffi import requests as _cffi_requests
+    from curl_cffi.requests.exceptions import RequestException as _CurlError
+    _HAS_CURL_CFFI = True
+except ImportError:  # pragma: no cover - optional dependency
+    _cffi_requests = None
+    _HAS_CURL_CFFI = False
+
+# Browser profile to impersonate ("chrome" = latest alias in the installed
+# curl_cffi); keeps the TLS fingerprint and browser headers coherent.
+_IMPERSONATE = "chrome"
+
+# Network-layer errors that mean "fetch failed", whichever client is in use.
+FETCH_NETWORK_ERRORS = (
+    (httpx.RequestError, _CurlError) if _HAS_CURL_CFFI else (httpx.RequestError,)
+)
+
+# Browser-like request headers for page fetches. A stale or bot-looking
+# User-Agent gets 403'd by sites like Wikipedia, so present as a current
+# Chrome on Windows and send the Accept/Sec-Fetch hints a real browser does.
+# (Accept-Encoding stays at gzip/deflate — what httpx can decode without extra
+# optional packages like brotli/zstandard.)
+BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,image/apng,*/*;q=0.8"
+    ),
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate",
+    "Sec-Ch-Ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Windows"',
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
+}
+
 _PRIVATE_NETWORKS = (
     ipaddress.ip_network("0.0.0.0/8"),
     ipaddress.ip_network("10.0.0.0/8"),
@@ -79,11 +126,20 @@ def _public_http_url(url: str) -> bool:
 
 
 def _get_public_url(url: str, headers: dict, timeout: int, max_redirects: int = 5) -> httpx.Response:
+    if _HAS_CURL_CFFI:
+        # impersonate sets a coherent browser header set itself, so we don't
+        # pass our own headers here (avoids a UA/Sec-Ch-Ua vs TLS mismatch).
+        def _get(u):
+            return _cffi_requests.get(u, impersonate=_IMPERSONATE, timeout=timeout, allow_redirects=False)
+    else:
+        def _get(u):
+            return httpx.get(u, headers=headers, timeout=timeout, follow_redirects=False)
+
     current = url
     for _ in range(max_redirects + 1):
         if not _public_http_url(current):
             raise httpx.RequestError("Blocked private/internal URL", request=httpx.Request("GET", current))
-        response = httpx.get(current, headers=headers, timeout=timeout, follow_redirects=False)
+        response = _get(current)
         if response.status_code not in (301, 302, 303, 307, 308):
             return response
         location = response.headers.get("location")
@@ -213,20 +269,18 @@ def fetch_webpage_content(url: str, timeout: int = 5, retry_attempt: int = 0) ->
 
     # Fetch
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate",
-            "Connection": "keep-alive",
-        }
-        response = _get_public_url(url, headers=headers, timeout=timeout)
+        response = _get_public_url(url, headers=dict(BROWSER_HEADERS), timeout=timeout)
 
         if response.status_code == 429:
             raise RateLimitError(f"Rate limit hit for {url} (attempt {retry_attempt})")
 
-        response.raise_for_status()
-    except httpx.RequestError as e:
+        # Handle errors by status code rather than raise_for_status() so it works
+        # the same for httpx and curl_cffi responses (e.g. 403 from anti-bot
+        # edges, 404 missing pages).
+        if response.status_code >= 400:
+            error_logger.warning(f"HTTP {response.status_code} fetching {url}")
+            return _empty_result(url, f"HTTP {response.status_code}")
+    except FETCH_NETWORK_ERRORS as e:
         error_logger.error(f"NetworkError fetching {url} (attempt {retry_attempt}): {e}")
         return _empty_result(url, f"NetworkError: {e}")
     except RateLimitError as e:
@@ -285,8 +339,20 @@ def fetch_webpage_content(url: str, timeout: int = 5, retry_attempt: int = 0) ->
         class_=re.compile("content|main|body|article|post|entry|text", re.I),
     )
     if content_areas:
-        for area in content_areas[:3]:
-            main_content += area.get_text(separator=" ", strip=True) + " "
+        # Rank by amount of text, not document order: page chrome (e.g.
+        # Wikipedia's "vector-menu-content" nav divs) also matches the class
+        # regex and sits first in the DOM, so first-N-in-order would grab menus
+        # instead of the article. Largest-first, skipping anything nested inside
+        # an already-chosen block to avoid double-counting.
+        ranked = sorted(content_areas, key=lambda a: len(a.get_text(strip=True)), reverse=True)
+        chosen = []
+        for area in ranked:
+            if any(area in sel.descendants for sel in chosen):
+                continue
+            chosen.append(area)
+            if len(chosen) >= 3:
+                break
+        main_content = " ".join(a.get_text(separator=" ", strip=True) for a in chosen)
     if not main_content:
         body = soup.find("body")
         if body:
