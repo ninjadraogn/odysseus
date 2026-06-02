@@ -46,7 +46,7 @@ async def archive_inactive_sessions(session_manager, owner: Optional[str] = None
     try:
         q = db.query(DbSession).filter(
             DbSession.last_accessed < cutoff_date,
-            DbSession.archived == False
+            not DbSession.archived
         )
         q = _apply_owner_filter(q, DbSession, owner)
         sessions_to_archive = q.all()
@@ -92,9 +92,9 @@ async def cleanup_old_sessions(session_manager, owner: Optional[str] = None) -> 
         recent_session_ids = {session.id for session in all_sessions[:CleanupConfig.PRESERVE_RECENT_COUNT]}
 
         base_query = db.query(DbSession).filter(
-            DbSession.archived == True,
+            DbSession.archived,
             DbSession.last_accessed < cutoff_date,
-            DbSession.is_important == False,
+            not DbSession.is_important,
             DbSession.message_count < CleanupConfig.MIN_MESSAGES_TO_KEEP
         )
         base_query = _apply_owner_filter(base_query, DbSession, owner)
@@ -171,7 +171,7 @@ async def get_cleanup_preview(owner: Optional[str] = None) -> Dict[str, Any]:
     try:
         archive_q = db.query(DbSession).filter(
             DbSession.last_accessed < cutoff_archive,
-            DbSession.archived == False
+            not DbSession.archived
         )
         archive_q = _apply_owner_filter(archive_q, DbSession, owner)
         archive_candidates = archive_q.all()
@@ -190,9 +190,9 @@ async def get_cleanup_preview(owner: Optional[str] = None) -> Dict[str, Any]:
         recent_session_ids = {session.id for session in all_sessions[:CleanupConfig.PRESERVE_RECENT_COUNT]}
 
         base_query = db.query(DbSession).filter(
-            DbSession.archived == True,
+            DbSession.archived,
             DbSession.last_accessed < cutoff_delete,
-            DbSession.is_important == False,
+            not DbSession.is_important,
             DbSession.message_count < CleanupConfig.MIN_MESSAGES_TO_KEEP
         )
         base_query = _apply_owner_filter(base_query, DbSession, owner)

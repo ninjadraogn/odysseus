@@ -96,7 +96,8 @@ def _sniff_doc_language(text: str) -> str:
     """Best-effort detect a document's language from its content when the model
     didn't specify one. Defaults to 'markdown' (prose). Recognizes the common
     markup/code types the editor supports so e.g. an SVG isn't saved as markdown."""
-    import json as _json, re as _re2
+    import json as _json
+    import re as _re2
     s = (text or "").strip()
     if not s:
         return "markdown"
@@ -176,7 +177,8 @@ async def do_create_document(content_block: str, session_id: Optional[str] = Non
       1) Line-based: line 1 = title, line 2 (optional) = language, rest = content
       2) XML-like tags: <title>...</title><language>...</language><content>...</content>
     Some models mix them — strip any XML-style tags and fall back to line parsing."""
-    import uuid, re as _re
+    import uuid
+    import re as _re
     from src.database import SessionLocal, Document, DocumentVersion, Session as DbSession
 
     raw = content_block or ""
@@ -520,7 +522,7 @@ async def do_search_chats(query: str, limit: int = 20, owner: str | None = None)
             db.query(DBChatMessage, DBSession.id, DBSession.name)
             .join(DBSession, DBChatMessage.session_id == DBSession.id)
             .filter(
-                DBSession.archived == False,
+                not DBSession.archived,
                 DBChatMessage.content.ilike(f"%{safe_q}%", escape="\\"),
                 DBChatMessage.role.in_(["user", "assistant"]),
             )
@@ -1297,7 +1299,9 @@ async def do_manage_tokens(content: str, owner: Optional[str] = None) -> Dict:
             return {"response": f"{len(items)} API tokens", "tokens": items, "exit_code": 0}
 
         elif action == "create":
-            import uuid as _uuid, secrets, bcrypt
+            import uuid as _uuid
+            import secrets
+            import bcrypt
             from datetime import datetime
             name = args.get("name", "API Token")
             raw_token = secrets.token_urlsafe(32)
@@ -1367,7 +1371,7 @@ async def do_manage_documents(content: str, owner: Optional[str] = None) -> Dict
 
     try:
         if action == "list":
-            q = db.query(Document).filter(Document.is_active == True)
+            q = db.query(Document).filter(Document.is_active)
             if args.get("search"):
                 q = q.filter(Document.title.ilike(f"%{args['search']}%"))
             if args.get("language"):
@@ -1398,7 +1402,7 @@ async def do_manage_documents(content: str, owner: Optional[str] = None) -> Dict
             doc_id = args.get("document_id") or args.get("id") or args.get("uid")
             if not doc_id:
                 return {"error": "Need document_id (use action=list to find one)", "exit_code": 1}
-            doc = db.query(Document).filter(Document.id == doc_id, Document.is_active == True).first()
+            doc = db.query(Document).filter(Document.id == doc_id, Document.is_active).first()
             if not doc:
                 return {"error": f"Document '{doc_id}' not found", "exit_code": 1}
             body = doc.current_content or ""
@@ -1426,7 +1430,7 @@ async def do_manage_documents(content: str, owner: Optional[str] = None) -> Dict
                 doc = db.query(Document).filter(Document.id == doc_id).first()
             if not doc:
                 # Fallback: most recently updated doc (likely what the user means)
-                doc = db.query(Document).filter(Document.is_active == True).order_by(Document.updated_at.desc()).first()
+                doc = db.query(Document).filter(Document.is_active).order_by(Document.updated_at.desc()).first()
             if not doc:
                 return {"error": "No document to delete", "exit_code": 1}
             title = doc.title
@@ -1542,7 +1546,7 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
             if not wanted_slug:
                 return None
             best = None
-            for ep in db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all():
+            for ep in db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled).all():
                 raw_models = []
                 try:
                     raw_models = _json.loads(ep.cached_models or "[]") or []
@@ -2800,7 +2804,6 @@ def _scan_running_model_processes() -> List[Dict[str, Any]]:
     [] on other platforms or if /proc isn't accessible. Each match returns
     a dict shaped like a cookbook task so the caller can merge cleanly.
     """
-    import os
     if not os.path.isdir("/proc"):
         return []
     out: List[Dict[str, Any]] = []

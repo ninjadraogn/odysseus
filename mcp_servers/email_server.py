@@ -21,7 +21,7 @@ import sys
 import os
 import os.path
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -518,7 +518,6 @@ def _search_emails(query, folders=None, max_results=20, account=None):
     cache = _get_cached_summaries()
     out = []
     conn = _imap_connect(account)
-    touched = []
     try:
         for folder in folders:
             try:

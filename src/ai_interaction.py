@@ -83,7 +83,7 @@ def _resolve_model(spec: str) -> Tuple[str, str, Dict]:
 
     db = SessionLocal()
     try:
-        query = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True)
+        query = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled)
         if target_endpoint_name:
             query = query.filter(ModelEndpoint.name.ilike(f"%{target_endpoint_name}%"))
         endpoints = query.all()
@@ -1097,7 +1097,7 @@ async def do_list_models(content: str, session_id: Optional[str] = None) -> Dict
 
     db = SessionLocal()
     try:
-        endpoints = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all()
+        endpoints = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled).all()
         if not endpoints:
             return {"results": "No enabled model endpoints configured."}
 
@@ -1579,7 +1579,7 @@ async def do_generate_image(content: str, session_id: Optional[str] = None, owne
                 _idb = SessionLocal()
                 try:
                     _img_eps = _idb.query(ModelEndpoint).filter(
-                        ModelEndpoint.is_enabled == True,
+                        ModelEndpoint.is_enabled,
                         ModelEndpoint.model_type == "image",
                     ).all()
                     for _iep in _img_eps:

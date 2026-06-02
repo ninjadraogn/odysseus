@@ -505,7 +505,6 @@ def _get_inpaint_pipe():
         return _img2img_pipe, 'img2img'
 
     import diffusers
-    model_path = _args.model
     torch_dtype = DTYPE_MAP.get(_args.dtype, torch.bfloat16)
 
     # Check if the main pipeline IS already an inpaint pipeline

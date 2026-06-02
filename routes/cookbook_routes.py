@@ -1678,8 +1678,8 @@ def setup_cookbook_routes() -> APIRouter:
                     cap = subprocess.run(capture_cmd, timeout=10, capture_output=True, text=True)
                     if cap.returncode == 0:
                         full_snapshot = cap.stdout.strip()
-                        lines = [l.strip() for l in full_snapshot.split('\n') if l.strip()]
-                        downloading_lines = [l for l in lines if l.startswith("Downloading")]
+                        lines = [line.strip() for line in full_snapshot.split('\n') if line.strip()]
+                        downloading_lines = [line for line in lines if line.startswith("Downloading")]
                         if downloading_lines:
                             progress_text = downloading_lines[-1]
                         elif lines:
@@ -1698,7 +1698,7 @@ def setup_cookbook_routes() -> APIRouter:
                     status = "error"
                 elif has_exit and "unrecognized arguments" in lower:
                     status = "error"
-                elif has_error and not ("application startup complete" in lower):
+                elif has_error and "application startup complete" not in lower:
                     status = "error"
                 elif task_type == "download" and ("100%" in full_snapshot or "DOWNLOAD_OK" in full_snapshot):
                     # Only download tasks treat 100% as "completed".

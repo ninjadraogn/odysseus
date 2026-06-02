@@ -157,7 +157,7 @@ def _resolve_run_endpoint(db, task: ScheduledTask, run: TaskRun) -> str:
 
     try:
         from core.database import ModelEndpoint
-        eps = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all()
+        eps = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled).all()
         for ep in eps:
             cached = []
             if ep.cached_models:
@@ -825,7 +825,8 @@ def setup_task_routes(task_scheduler) -> APIRouter:
         from src.endpoint_resolver import resolve_endpoint
         from src.llm_core import llm_call_async
         from src.text_helpers import strip_think as _strip_think
-        import json as _json, re as _re
+        import json as _json
+        import re as _re
         from datetime import datetime as _dt
 
         body = await request.json()

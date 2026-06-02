@@ -177,7 +177,7 @@ class McpManager:
 
         db = SessionLocal()
         try:
-            servers = db.query(McpServer).filter(McpServer.is_enabled == True).all()
+            servers = db.query(McpServer).filter(McpServer.is_enabled).all()
             for srv in servers:
                 args = json.loads(srv.args) if srv.args else []
                 env = json.loads(srv.env) if srv.env else {}

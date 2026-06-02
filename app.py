@@ -2,7 +2,6 @@
 from dotenv import load_dotenv
 load_dotenv()
 import os
-import uuid
 
 import asyncio
 import logging
@@ -160,7 +159,7 @@ if AUTH_ENABLED:
         new_map = defaultdict(list)
         db = SessionLocal()
         try:
-            rows = db.query(ApiToken).filter(ApiToken.is_active == True).all()
+            rows = db.query(ApiToken).filter(ApiToken.is_active).all()
             for r in rows:
                 scopes = [s.strip() for s in (getattr(r, "scopes", "") or "chat").split(",") if s.strip()]
                 new_map[r.token_prefix].append((r.id, r.token_hash, getattr(r, "owner", None), scopes))

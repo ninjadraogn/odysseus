@@ -314,7 +314,7 @@ def setup_research_routes(research_handler, session_manager=None) -> APIRouter:
                     try:
                         privs = auth_mgr.get_privileges(tool_owner) or {}
                         if not privs.get("can_use_research", True):
-                            raise HTTPException(403, f"Your account is not allowed to can use research.")
+                            raise HTTPException(403, "Your account is not allowed to can use research.")
                     except HTTPException:
                         raise
                     except Exception:
@@ -330,7 +330,7 @@ def setup_research_routes(research_handler, session_manager=None) -> APIRouter:
             try:
                 ep = db.query(ModelEndpoint).filter(
                     ModelEndpoint.id == body.endpoint_id,
-                    ModelEndpoint.is_enabled == True,
+                    ModelEndpoint.is_enabled,
                 ).first()
                 if not ep:
                     raise HTTPException(404, "Endpoint not found or disabled")
@@ -367,7 +367,7 @@ def setup_research_routes(research_handler, session_manager=None) -> APIRouter:
                 db = SessionLocal()
                 try:
                     ep = db.query(ModelEndpoint).filter(
-                        ModelEndpoint.is_enabled == True,
+                        ModelEndpoint.is_enabled,
                     ).first()
                     if ep:
                         base = normalize_base(ep.base_url)
@@ -529,7 +529,7 @@ def setup_research_routes(research_handler, session_manager=None) -> APIRouter:
             from src.endpoint_resolver import normalize_base, build_chat_url, build_headers
             db = SessionLocal()
             try:
-                ep = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).first()
+                ep = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled).first()
                 if ep:
                     base = normalize_base(ep.base_url)
                     fallback_url = build_chat_url(base)

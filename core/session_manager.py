@@ -59,7 +59,7 @@ class SessionManager:
         db = SessionLocal()
         try:
             db_sessions = db.query(DbSession).filter(
-                DbSession.archived == False,
+                not DbSession.archived,
                 DbSession.message_count > 0,
             ).order_by(DbSession.last_accessed.desc()).limit(100).all()
 

@@ -187,8 +187,8 @@ def test_pop_notifications_owner_filtered():
     # Build a minimal scheduler instance that we can hit directly.
     # Reuse the real class so the test catches future regressions of
     # the filter logic.
-    import sys, types
-    from unittest.mock import MagicMock as _MM
+    import sys
+    import types
     # `task_scheduler` pulls in lots of helpers — stub the ones it uses.
     for s in ["src.builtin_actions", "src.ai_interaction", "src.endpoint_resolver",
               "src.agent_loop", "src.session_manager"]:

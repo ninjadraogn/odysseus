@@ -500,7 +500,9 @@ def setup_shell_routes() -> APIRouter:
         never reflected because the check only ever looked at the local host.
         """
         _require_admin(request)
-        import importlib, shlex, json as _json
+        import importlib
+        import shlex
+        import json as _json
         port_arg = ""
         if ssh_port and str(ssh_port).strip() not in ("", "22"):
             _port = str(ssh_port).strip()

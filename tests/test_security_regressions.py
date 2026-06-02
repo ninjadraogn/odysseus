@@ -12,7 +12,6 @@ These are pure-function tests — no FastAPI app boot, no DB.
 """
 
 import sys
-import types
 import json
 from pathlib import Path
 

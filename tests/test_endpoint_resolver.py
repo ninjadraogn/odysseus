@@ -1,5 +1,4 @@
 """Tests for endpoint_resolver — pure functions tested directly to avoid import pollution."""
-import re
 from urllib.parse import urlparse
 
 

@@ -230,13 +230,13 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
             from sqlalchemy import or_
             # Archived view shows ONLY archived docs; the default view excludes
             # them (NULL = legacy rows that predate the column = not archived).
-            _arch_cond = (Document.archived == True) if archived else or_(
-                Document.archived == False, Document.archived.is_(None))
+            _arch_cond = (Document.archived) if archived else or_(
+                not Document.archived, Document.archived.is_(None))
             # Language facet counts (owner-filtered)
             lang_q = (
                 db.query(Document.language, func.count(Document.id))
                 .outerjoin(DbSession, Document.session_id == DbSession.id)
-                .filter(Document.is_active == True).filter(_arch_cond)
+                .filter(Document.is_active).filter(_arch_cond)
             )
             lang_q = _owner_session_filter(lang_q, user)
             lang_rows = lang_q.group_by(Document.language).all()
@@ -246,7 +246,7 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
             sc_q = (
                 db.query(func.count(func.distinct(Document.session_id)))
                 .outerjoin(DbSession, Document.session_id == DbSession.id)
-                .filter(Document.is_active == True).filter(_arch_cond)
+                .filter(Document.is_active).filter(_arch_cond)
             )
             sc_q = _owner_session_filter(sc_q, user)
             session_count = sc_q.scalar()
@@ -255,7 +255,7 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
             q = (
                 db.query(Document, DbSession.name)
                 .outerjoin(DbSession, Document.session_id == DbSession.id)
-                .filter(Document.is_active == True).filter(_arch_cond)
+                .filter(Document.is_active).filter(_arch_cond)
             )
             q = _owner_session_filter(q, user)
 
@@ -274,7 +274,7 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
             # Language filter
             if language:
                 if language == "text":
-                    q = q.filter((Document.language == None) | (Document.language == "text"))
+                    q = q.filter((Document.language is None) | (Document.language == "text"))
                 else:
                     q = q.filter(Document.language == language)
 
@@ -701,8 +701,8 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
             q = (
                 db.query(Document)
                 .outerjoin(DbSession, Document.session_id == DbSession.id)
-                .filter(Document.is_active == True)
-                .filter((Document.archived == False) | (Document.archived.is_(None)))
+                .filter(Document.is_active)
+                .filter((not Document.archived) | (Document.archived.is_(None)))
             )
             q = _owner_session_filter(q, user)
             docs = q.all()
@@ -772,8 +772,8 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
             inactive_q = (
                 db.query(Document)
                 .outerjoin(DbSession, Document.session_id == DbSession.id)
-                .filter(Document.is_active == False)
-                .filter((Document.current_content == None) | (Document.current_content == ""))
+                .filter(not Document.is_active)
+                .filter((Document.current_content is None) | (Document.current_content == ""))
             )
             inactive_q = _owner_session_filter(inactive_q, user)
             inactive_docs = inactive_q.all()
@@ -816,8 +816,8 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
             q = (
                 db.query(Document)
                 .outerjoin(DbSession, Document.session_id == DbSession.id)
-                .filter(Document.is_active == True)
-                .filter((Document.archived == False) | (Document.archived.is_(None)))
+                .filter(Document.is_active)
+                .filter((not Document.archived) | (Document.archived.is_(None)))
             )
             q = _owner_session_filter(q, user)
             docs = q.all()
@@ -1589,7 +1589,8 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
                 from routes.email_routes import _imap, _decode_header
             except Exception:
                 _imap = None
-                _decode_header = lambda x: x or ""
+                def _decode_header(x):
+                    return x or ""
 
             to_addr = ""
             from_name = ""

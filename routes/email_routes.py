@@ -1564,7 +1564,7 @@ def setup_email_routes():
                 ver_id = str(uuid.uuid4())
                 _db = _SL()
                 try:
-                    _db.query(_Doc).filter(_Doc.is_active == True).update({"is_active": False})
+                    _db.query(_Doc).filter(_Doc.is_active).update({"is_active": False})
                     _db.add(_Doc(
                         id=doc_id, session_id=doc_session_id, title=title,
                         language="markdown", current_content=content,
@@ -1591,7 +1591,7 @@ def setup_email_routes():
                 ver_id = str(uuid.uuid4())
                 _db = _SL()
                 try:
-                    _db.query(_Doc).filter(_Doc.is_active == True).update({"is_active": False})
+                    _db.query(_Doc).filter(_Doc.is_active).update({"is_active": False})
                     _db.add(_Doc(
                         id=doc_id, session_id=doc_session_id, title=title,
                         language="markdown", current_content=content,

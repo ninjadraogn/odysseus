@@ -255,7 +255,7 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
             db = SessionLocal()
             try:
                 ep = db.query(ModelEndpoint).filter(
-                    ModelEndpoint.id == ep_id, ModelEndpoint.is_enabled == True
+                    ModelEndpoint.id == ep_id, ModelEndpoint.is_enabled
                 ).first()
                 if ep:
                     base = _normalize_base(ep.base_url)
@@ -442,8 +442,8 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
         except json.JSONDecodeError:
             # Fallback: split by lines, stripping any "1.", "2)" markdown-list
             # numbering the model added so saved memories don't keep the prefix.
-            lines = [_strip_list_prefix(l.strip()) for l in raw.splitlines() if l.strip() and len(l.strip()) > 5]
-            return {"suggestions": [{"text": l, "category": "fact"} for l in lines[:20]], "filename": filename}
+            lines = [_strip_list_prefix(line.strip()) for line in raw.splitlines() if line.strip() and len(line.strip()) > 5]
+            return {"suggestions": [{"text": line, "category": "fact"} for line in lines[:20]], "filename": filename}
         except Exception as e:
             logger.error(f"Memory import extraction failed: {e}")
             raise HTTPException(502, f"LLM extraction failed: {str(e)}")

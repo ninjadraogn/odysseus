@@ -1708,9 +1708,9 @@ def cleanup_old_sessions(days: int = 30):
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
         deleted_count = db.query(Session).filter(
-            Session.archived == True,
+            Session.archived,
             Session.last_accessed < cutoff_date,
-            Session.is_important == False
+            not Session.is_important
         ).delete()
         
         return deleted_count
@@ -1720,8 +1720,8 @@ def get_session_stats():
     with get_db_session() as db:
         stats = {
             'total_sessions': db.query(Session).count(),
-            'active_sessions': db.query(Session).filter(Session.archived == False).count(),
-            'archived_sessions': db.query(Session).filter(Session.archived == True).count(),
+            'active_sessions': db.query(Session).filter(not Session.archived).count(),
+            'archived_sessions': db.query(Session).filter(Session.archived).count(),
             'total_messages': db.query(ChatMessage).count(),
             'total_memories': db.query(Memory).count()
         }

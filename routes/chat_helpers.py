@@ -194,7 +194,7 @@ def try_fallback_endpoint(sess, session_id: str) -> dict | None:
     db = SessionLocal()
     try:
         endpoints = db.query(ModelEndpoint).filter(
-            ModelEndpoint.is_enabled == True
+            ModelEndpoint.is_enabled
         ).all()
     finally:
         db.close()

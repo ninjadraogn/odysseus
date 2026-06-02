@@ -483,7 +483,7 @@ def setup_note_routes(task_scheduler=None):
             if archived is not None:
                 q = q.filter(Note.archived == archived)
             else:
-                q = q.filter(Note.archived == False)
+                q = q.filter(not Note.archived)
             if label:
                 q = q.filter(Note.label == label)
             # Archived view: most recently archived first. Active view: pin + manual order.

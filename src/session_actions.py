@@ -46,7 +46,7 @@ async def run_auto_sort(owner: str, skip_llm: bool = False) -> str:
         deleted_throwaway = 0
 
         rows = db.query(DbSession).filter(
-            DbSession.archived == False,
+            not DbSession.archived,
             *([DbSession.owner == owner] if owner else []),
         ).all()
 
@@ -105,7 +105,7 @@ async def run_auto_sort(owner: str, skip_llm: bool = False) -> str:
 
         # ── Phase 2: AI folder assignment ──
         remaining = db.query(DbSession).filter(
-            DbSession.archived == False,
+            not DbSession.archived,
             *([DbSession.owner == owner] if owner else []),
         ).all()
 

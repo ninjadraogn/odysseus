@@ -75,7 +75,7 @@ def setup_editor_draft_routes() -> APIRouter:
         user = get_current_user(request)
         db = SessionLocal()
         try:
-            q = db.query(EditorDraft).filter(EditorDraft.is_active == True)
+            q = db.query(EditorDraft).filter(EditorDraft.is_active)
             if user is not None:
                 q = q.filter(EditorDraft.owner == user)
             rows = q.order_by(EditorDraft.updated_at.desc()).limit(200).all()
@@ -89,7 +89,7 @@ def setup_editor_draft_routes() -> APIRouter:
         db = SessionLocal()
         try:
             d = db.query(EditorDraft).filter(
-                EditorDraft.id == draft_id, EditorDraft.is_active == True
+                EditorDraft.id == draft_id, EditorDraft.is_active
             ).first()
             if not d or not _owns(d, user):
                 raise HTTPException(404, "Draft not found")
@@ -136,7 +136,7 @@ def setup_editor_draft_routes() -> APIRouter:
         db = SessionLocal()
         try:
             d = db.query(EditorDraft).filter(
-                EditorDraft.id == draft_id, EditorDraft.is_active == True
+                EditorDraft.id == draft_id, EditorDraft.is_active
             ).first()
             if not d or not _owns(d, user):
                 raise HTTPException(404, "Draft not found")

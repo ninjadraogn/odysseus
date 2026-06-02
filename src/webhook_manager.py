@@ -166,7 +166,7 @@ class WebhookManager:
             return
         db = SessionLocal()
         try:
-            webhooks = db.query(Webhook).filter(Webhook.is_active == True).all()
+            webhooks = db.query(Webhook).filter(Webhook.is_active).all()
             matching = [w for w in webhooks if event in w.events.split(",")]
         finally:
             db.close()

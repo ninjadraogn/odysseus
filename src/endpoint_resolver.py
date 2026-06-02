@@ -191,7 +191,7 @@ def resolve_endpoint(
     try:
         ep = db.query(ModelEndpoint).filter(
             ModelEndpoint.id == ep_id,
-            ModelEndpoint.is_enabled == True,
+            ModelEndpoint.is_enabled,
         )
         if owner:
             from src.auth_helpers import owner_filter
@@ -236,7 +236,7 @@ def resolve_endpoint_by_id(
     try:
         ep = db.query(ModelEndpoint).filter(
             ModelEndpoint.id == ep_id,
-            ModelEndpoint.is_enabled == True,
+            ModelEndpoint.is_enabled,
         ).first()
         if not ep:
             return None

@@ -262,7 +262,7 @@ def setup_webhook_routes(
         if not sess:
             db = SessionLocal()
             try:
-                ep = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).first()
+                ep = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled).first()
             finally:
                 db.close()
 
