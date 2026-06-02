@@ -1,18 +1,19 @@
-# Copy to /etc/systemd/system/odysseus-ui.service
-# Edit User, WorkingDirectory, and ExecStart paths to match your setup
+# Copy to /etc/systemd/system/odysseus-ui.service (install-service.sh does this for you)
 [Unit]
 Description=Odysseus UI
 After=network.target
 
 [Service]
 Type=simple
-# CHANGE THESE to match your user and install path:
-User=YOURUSER
-WorkingDirectory=/home/YOURUSER/odysseus-ui
-ExecStart=/home/YOURUSER/odysseus-ui/venv/bin/uvicorn app:app --port 8000 --host 0.0.0.0
+User=david
+WorkingDirectory=/home/david/odysseus
+# PATH must include /home/david/.local/bin so the Browser MCP server can find `npx`
+# (Node was installed there). Without it, the built-in Browser MCP fails to start.
+Environment=PATH=/home/david/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/david/odysseus/venv/bin/uvicorn app:app --port 7000 --host 0.0.0.0
 Restart=always
 RestartSec=3
-EnvironmentFile=-/home/YOURUSER/odysseus-ui/.env
+EnvironmentFile=-/home/david/odysseus/.env
 
 [Install]
 WantedBy=multi-user.target

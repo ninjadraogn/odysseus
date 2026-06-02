@@ -1354,7 +1354,7 @@ async def stream_agent_loop(
     _model_supports_tools = any(kw in _model_lc for kw in (
         "deepseek", "gpt-4", "gpt-5", "gpt-o", "claude", "gemini",
         "qwen3", "qwen2.5", "mixtral", "mistral", "llama-3.1", "llama-3.2",
-        "llama-3.3", "llama-4",
+        "llama-3.3", "llama-4", "gemma-4", "gemma-3n",
         # Local-served models that follow OpenAI-style function calling
         # via vLLM's `--enable-auto-tool-choice`. Belt-and-suspenders
         # with the per-endpoint flag above.

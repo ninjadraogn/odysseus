@@ -149,6 +149,8 @@ def _detect_provider(url: str) -> str:
         return "openrouter"
     if "groq.com" in u:
         return "groq"
+    if ":11434" in u or "ollama" in u:
+        return "ollama"
     return "openai"
 
 
@@ -381,7 +383,8 @@ def _sanitize_llm_messages(messages: List[Dict]) -> List[Dict]:
         if not isinstance(msg, dict):
             continue
         item = {k: v for k, v in msg.items() if k in allowed and v is not None}
-        if "role" in item and "content" in item:
+        # Keep assistant tool-call turns even when content is null
+        if "role" in item and ("content" in item or "tool_calls" in item):
             cleaned.append(item)
     return cleaned
 
@@ -681,7 +684,7 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
             "temperature": temperature,
             "stream": True,
         }
-        if provider not in {"openrouter", "groq"}:
+        if provider not in {"openrouter", "groq", "ollama"}:
             payload["stream_options"] = {"include_usage": True}
         if max_tokens and max_tokens > 0:
             tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) else "max_tokens"
