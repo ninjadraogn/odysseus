@@ -720,6 +720,8 @@ import createResearchSynapse from './researchSynapse.js';
       const fd = new FormData();
       fd.append('message', _finalMsgWithInject);
       fd.append('session', streamSessionId);
+      // Agent execution mode (approval gating): agent | accept_edits | plan
+      fd.append('agent_mode', (window._getAgentMode && window._getAgentMode()) || 'agent');
       if (ids.length) fd.append('attachments', JSON.stringify(ids));
       // Auto-save & send active doc ID so the backend sees latest content
       if (documentModule && documentModule.isPanelOpen() && documentModule.getCurrentDocId()) {
@@ -1847,6 +1849,65 @@ import createResearchSynapse from './researchSynapse.js';
                 // can be edited/deleted immediately, without reloading the chat.
                 if (_isBg) continue;
                 if (currentHolder && json.id) currentHolder.dataset.dbId = json.id;
+
+              } else if (json.type === 'tool_approval_request') {
+                // accept_edits mode: a destructive tool is paused awaiting the
+                // user's decision. Render an Approve/Deny card; clicking POSTs
+                // to /api/tool_approval/{id}, which un-blocks the agent stream.
+                if (_isBg) continue;
+                const _chatBoxAp = document.getElementById('chat-history');
+                const _card = document.createElement('div');
+                _card.className = 'tool-approval msg-ai';
+                _card.dataset.approvalId = json.approval_id;
+                _card.innerHTML =
+                  '<div class="tool-approval-head"><span class="tool-approval-title"></span>' +
+                  '<span class="tool-approval-risk"></span></div>' +
+                  '<div class="tool-approval-cmd"></div>' +
+                  '<div class="tool-approval-actions">' +
+                  '<button type="button" class="tool-approval-btn approve">Approve</button>' +
+                  '<button type="button" class="tool-approval-btn deny">Deny</button></div>';
+                _card.querySelector('.tool-approval-title').textContent = 'Run ' + (json.tool || 'tool') + '?';
+                _card.querySelector('.tool-approval-risk').textContent = json.risk || 'destructive';
+                _card.querySelector('.tool-approval-cmd').textContent = json.command || '';
+                _chatBoxAp.appendChild(_card);
+                _chatBoxAp.scrollTop = _chatBoxAp.scrollHeight;
+                const _resolveApproval = async (decision) => {
+                  _card.querySelectorAll('.tool-approval-btn').forEach(b => b.disabled = true);
+                  try {
+                    await fetch('/api/tool_approval/' + encodeURIComponent(json.approval_id), {
+                      method: 'POST', credentials: 'same-origin',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ decision }),
+                    });
+                  } catch (_e) { /* stream auto-denies on timeout */ }
+                  _card.classList.add('resolved');
+                  const _res = document.createElement('div');
+                  _res.className = 'tool-approval-result';
+                  _res.textContent = decision === 'approve' ? '✓ Approved' : '✕ Denied';
+                  _card.appendChild(_res);
+                };
+                _card.querySelector('.approve').addEventListener('click', () => _resolveApproval('approve'));
+                _card.querySelector('.deny').addEventListener('click', () => _resolveApproval('deny'));
+
+              } else if (json.type === 'plan_skipped') {
+                // Plan mode blocked a mutating tool — show clearly that it was
+                // NOT executed (a prominent card, not a faint line).
+                if (_isBg) continue;
+                const _chatBoxPs = document.getElementById('chat-history');
+                const _card = document.createElement('div');
+                _card.className = 'plan-skip-card msg-ai';
+                _card.innerHTML =
+                  '<div class="plan-skip-head">▣ Plan mode — not run</div>' +
+                  '<div class="plan-skip-cmd"></div>' +
+                  '<div class="plan-skip-sub">Blocked because you\'re in Plan mode. Switch to Auto or Accept Edits to actually run it.</div>';
+                _card.querySelector('.plan-skip-cmd').textContent =
+                  (json.tool || 'tool') + (json.command ? ': ' + String(json.command).slice(0, 200) : '');
+                _chatBoxPs.appendChild(_card);
+                _chatBoxPs.scrollTop = _chatBoxPs.scrollHeight;
+
+              } else if (json.type === 'tool_approved' || json.type === 'tool_denied') {
+                // Server echo of the decision; the card already reflects it.
+                if (_isBg) continue;
 
               } else if (json.type === 'tool_start') {
                 if (_isBg) continue;

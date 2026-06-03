@@ -2512,6 +2512,97 @@ body.bg-pattern-sparkles {
     .mode-toggle-btn + .mode-toggle-btn {
       border-left: none;
     }
+
+    /* ── Agent execution-mode picker (Auto / Accept Edits / Plan) ── */
+    .agentmode-wrap { position: relative; flex-shrink: 0; }
+    .agentmode-btn {
+      display: flex; align-items: center; gap: 5px;
+      height: 28px; padding: 0 9px;
+      border: 1px solid var(--border); border-radius: 10px;
+      background: none; color: color-mix(in srgb, var(--fg) 65%, transparent);
+      font-size: 11px; font-weight: 500; font-family: inherit;
+      cursor: pointer; white-space: nowrap; transition: color 0.2s, border-color 0.2s;
+    }
+    .agentmode-btn:hover { color: var(--fg); border-color: color-mix(in srgb, var(--fg) 35%, transparent); }
+    .agentmode-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-primary, #6aa3ff); flex-shrink: 0; }
+    .agentmode-dot.dot-agent { background: #4ea1ff; }
+    .agentmode-dot.dot-edits { background: #f2b34b; }
+    .agentmode-dot.dot-plan  { background: #9b8cff; }
+    /* tint the composer button dot by current mode */
+    .agentmode-wrap[data-mode="accept_edits"] #agentmode-dot { background: #f2b34b; }
+    .agentmode-wrap[data-mode="plan"] #agentmode-dot { background: #9b8cff; }
+    .agentmode-menu {
+      position: absolute; bottom: calc(100% + 6px); right: 0;
+      min-width: 172px; z-index: 60;
+      background: var(--card-bg, var(--bg)); border: 1px solid var(--border);
+      border-radius: 12px; padding: 5px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .agentmode-menu.hidden { display: none; }
+    .agentmode-item {
+      position: relative;
+      display: flex; align-items: center; gap: 9px;
+      padding: 9px 11px; border: none; border-radius: 8px;
+      background: none; color: var(--fg); cursor: pointer; text-align: left;
+      font-family: inherit; width: 100%;
+    }
+    .agentmode-item:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
+    .agentmode-item.active { background: color-mix(in srgb, var(--accent-primary, #6aa3ff) 16%, transparent); }
+    .agentmode-item-text { display: block; min-width: 0; flex: 1; }
+    .agentmode-item-text strong { display: block; font-size: 12px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+    /* Description is hidden until hover, then floats to the LEFT of the menu as
+       a tooltip — absolutely positioned so it never affects row layout (no
+       overlap possible). */
+    .agentmode-item-text small {
+      display: none;
+      position: absolute; right: calc(100% + 10px); top: 50%;
+      transform: translateY(-50%);
+      width: 210px; padding: 8px 11px;
+      background: var(--card-bg, var(--bg)); border: 1px solid var(--border);
+      border-radius: 9px; box-shadow: 0 6px 22px rgba(0,0,0,0.32);
+      font-size: 11px; line-height: 1.45; white-space: normal;
+      color: color-mix(in srgb, var(--fg) 72%, transparent);
+      z-index: 70; pointer-events: none;
+    }
+    .agentmode-item:hover .agentmode-item-text small { display: block; }
+    .mode-toggle.mode-chat ~ .agentmode-wrap, .chat-input-right.is-chat .agentmode-wrap { display: none; }
+
+    /* ── Tool approval card (accept_edits mode) ── */
+    .tool-approval {
+      border: 1px solid color-mix(in srgb, #f2b34b 55%, var(--border));
+      border-radius: 12px; padding: 12px 14px; margin: 8px 0;
+      background: color-mix(in srgb, #f2b34b 8%, transparent);
+    }
+    .tool-approval-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 7px; }
+    .tool-approval-risk { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, #e06c4b 22%, transparent); color: #e06c4b; }
+    .tool-approval-cmd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+      background: color-mix(in srgb, var(--fg) 7%, transparent); border-radius: 8px;
+      padding: 8px 10px; margin-bottom: 10px; white-space: pre-wrap; word-break: break-word;
+      max-height: 180px; overflow: auto;
+    }
+    .tool-approval-actions { display: flex; gap: 8px; }
+    .tool-approval-btn { padding: 6px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); font-family: inherit; }
+    .tool-approval-btn.approve { background: #2ea36b; border-color: #2ea36b; color: #fff; }
+    .tool-approval-btn.deny { background: none; color: var(--fg); }
+    .tool-approval-btn:disabled { opacity: 0.5; cursor: default; }
+    .tool-approval.resolved .tool-approval-actions { display: none; }
+    .tool-approval-result { font-size: 12px; color: color-mix(in srgb, var(--fg) 60%, transparent); margin-top: 4px; }
+
+    /* ── Plan-mode "not run" card ── */
+    .plan-skip-card {
+      border: 1px solid color-mix(in srgb, #9b8cff 55%, var(--border));
+      border-radius: 12px; padding: 10px 13px; margin: 8px 0;
+      background: color-mix(in srgb, #9b8cff 9%, transparent);
+    }
+    .plan-skip-head { font-size: 13px; font-weight: 600; color: #9b8cff; margin-bottom: 6px; }
+    .plan-skip-cmd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+      background: color-mix(in srgb, var(--fg) 7%, transparent); border-radius: 8px;
+      padding: 7px 10px; white-space: pre-wrap; word-break: break-word;
+    }
+    .plan-skip-sub { font-size: 11px; color: color-mix(in srgb, var(--fg) 55%, transparent); margin-top: 6px; }
     /* Message count badge in the chat-meta header (next to the title).
        Auto-hides when empty so a brand-new chat doesn't show "0 msgs". */
     .chat-meta-count {

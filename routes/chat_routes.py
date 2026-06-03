@@ -270,6 +270,13 @@ def setup_chat_routes(
         compare_mode = str(form_data.get("compare_mode", "")).lower() == "true"
         incognito = str(form_data.get("incognito", "")).lower() == "true"
         chat_mode = str(form_data.get("mode", "")).lower()  # 'chat' or 'agent'
+        # Agent execution mode (approval gating): agent | accept_edits | plan.
+        # Separate axis from chat_mode above. Falls back to the saved default.
+        from src.agent_modes import normalize_mode as _normalize_agent_mode
+        from src.settings import get_setting as _get_setting
+        _agent_mode_raw = str(form_data.get("agent_mode", "")).strip()
+        agent_mode = _normalize_agent_mode(_agent_mode_raw or _get_setting("default_agent_mode", "agent"))
+        logger.info(f"[agent-mode] form agent_mode={_agent_mode_raw!r} -> using {agent_mode!r}")
         # Did the USER explicitly pick agent mode? (vs. us auto-escalating
         # below). Skill extraction should only learn from real agent sessions,
         # not chats we quietly promoted for a notes/calendar intent.
@@ -850,6 +857,7 @@ def setup_chat_routes(
                         disabled_tools=disabled_tools if disabled_tools else None,
                         owner=_user,
                         fallbacks=_fallback_candidates,
+                        mode=agent_mode,
                     ):
                         if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
                             try:
@@ -865,6 +873,9 @@ def setup_chat_routes(
                                     "tool_start", "tool_output", "agent_step",
                                     "doc_stream_open", "doc_stream_delta",
                                     "doc_update", "doc_suggestions", "ui_control",
+                                    # Agent-mode approval gate events
+                                    "tool_approval_request", "tool_approved",
+                                    "tool_denied", "plan_skipped",
                                 ):
                                     if data.get("type") == "agent_step":
                                         _agent_rounds = max(_agent_rounds, data.get("round", 1))
