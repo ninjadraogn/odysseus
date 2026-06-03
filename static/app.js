@@ -3783,6 +3783,8 @@ function startOdysseusApp() {
 
   // Expose globally so voiceRecorder can trigger update after async fetch
   window._updateSendBtnIcon = _updateSendBtnIcon;
+  // Expose the recorder so Settings can push the new STT provider live (no reload)
+  window.voiceRecorderModule = voiceRecorderModule;
 
   // Initial icon state
   _updateSendBtnIcon();
