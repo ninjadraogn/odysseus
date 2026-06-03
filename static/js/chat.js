@@ -1899,7 +1899,8 @@ import createResearchSynapse from './researchSynapse.js';
                 _card.innerHTML =
                   '<div class="plan-skip-head">▣ Plan mode — not run</div>' +
                   '<div class="plan-skip-cmd"></div>' +
-                  '<div class="plan-skip-sub">Blocked because you\'re in Plan mode. Switch to Auto or Accept Edits to actually run it.</div>';
+                  '<div class="plan-skip-sub">Blocked because you\'re in Plan mode. Switch to Auto or Accept Edits to actually run it.</div>' +
+                  '<div class="plan-skip-warn">⚠ Smaller / weaker models may still hallucinate output below — nothing was actually run.</div>';
                 _card.querySelector('.plan-skip-cmd').textContent =
                   (json.tool || 'tool') + (json.command ? ': ' + String(json.command).slice(0, 200) : '');
                 _chatBoxPs.appendChild(_card);
