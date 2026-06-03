@@ -847,8 +847,14 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
                                     delta = j["choices"][0].get("delta", {})
                                     if isinstance(delta, dict):
                                         # Text content
-                                        # Reasoning tokens (VLLM --reasoning-parser, e.g. Qwen3/DeepSeek-R1)
-                                        reasoning = delta.get("reasoning_content", "")
+                                        # Reasoning tokens. Backends disagree on the key:
+                                        # VLLM (--reasoning-parser, Qwen3/DeepSeek-R1) uses
+                                        # "reasoning_content"; Ollama's OpenAI-compat endpoint
+                                        # uses "reasoning" (e.g. Gemma 4 thinking models). Without
+                                        # handling both, thinking-only chunks carry empty content
+                                        # and nothing streams until real text begins — the UI
+                                        # appears stuck at "waiting for first token".
+                                        reasoning = delta.get("reasoning_content") or delta.get("reasoning") or ""
                                         if reasoning:
                                             yield f'data: {json.dumps({"delta": reasoning, "thinking": True})}\n\n'
                                         content = delta.get("content", "")
