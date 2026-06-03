@@ -1049,6 +1049,29 @@ async function initSttSettings() {
   if (sttEnabledToggle) sttEnabledToggle.addEventListener('change', function() { syncSttDisabled(); saveSTT(); });
 }
 
+/* ── Default agent mode (agent / accept_edits / plan) ── */
+async function initDefaultAgentMode() {
+  var sel = el('set-defaultAgentMode');
+  var msg = el('set-defaultAgentModeMsg');
+  if (!sel) return;
+  try {
+    var res = await fetch('/api/auth/settings', { credentials: 'same-origin' });
+    var settings = await res.json();
+    if (settings.default_agent_mode) sel.value = settings.default_agent_mode;
+  } catch (e) { console.warn('Failed to load default_agent_mode', e); }
+
+  sel.addEventListener('change', async function() {
+    try {
+      await fetch('/api/auth/settings', { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ default_agent_mode: sel.value }) });
+      if (msg) { msg.textContent = 'Saved'; msg.style.color = 'var(--fg)'; setTimeout(function(){ msg.textContent = ''; }, 2000); }
+      // Reflect the new default in the live composer picker immediately.
+      if (window._setAgentMode) window._setAgentMode(sel.value);
+    } catch (e) { if (msg) { msg.textContent = 'Failed to save'; msg.style.color = 'var(--red)'; } }
+  });
+}
+
 /* ═══════════════════════════════════════════
    SEARCH TAB
    ═══════════════════════════════════════════ */
@@ -2161,6 +2184,7 @@ function initAll() {
   initVisionSettings();
   initTtsSettings();
   initSttSettings();
+  initDefaultAgentMode();
   initSearchSettings();
   initResearchSettings();
   initResearchSearchSettings();

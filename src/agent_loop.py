@@ -33,6 +33,15 @@ from src.agent_tools import (
     ToolBlock,
     MAX_AGENT_ROUNDS,
 )
+from src.agent_modes import (
+    normalize_mode,
+    gate_decision,
+    classify_tool,
+    create_approval,
+    wait_for_approval,
+    MODE_PLAN,
+    PLAN_MODE_PROMPT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1356,6 +1365,7 @@ async def stream_agent_loop(
     owner: Optional[str] = None,
     relevant_tools: Optional[Set[str]] = None,
     fallbacks: Optional[List[tuple]] = None,
+    mode: str = "agent",
     _is_teacher_run: bool = False,
 ) -> AsyncGenerator[str, None]:
     """Streaming agent loop generator.
@@ -1371,6 +1381,13 @@ async def stream_agent_loop(
 
     mcp_mgr = get_mcp_manager()
     prep_timings: Dict[str, float] = {}
+    # Execution mode (agent / accept_edits / plan). In plan mode, prepend a
+    # system instruction so the model proposes a plan instead of acting; the
+    # tool gate below enforces it regardless. Copy the list so we never mutate
+    # the caller's messages.
+    mode = normalize_mode(mode)
+    if mode == MODE_PLAN:
+        messages = list(messages) + [{"role": "system", "content": PLAN_MODE_PROMPT}]
     disabled_tools = set(disabled_tools or [])
     public_blocked_tools = blocked_tools_for_owner(owner)
     if public_blocked_tools:
@@ -2044,6 +2061,42 @@ async def stream_agent_loop(
                 cmd_display = block.content.split("\n")[0].strip()[:80]
             else:
                 cmd_display = block.content.strip()
+
+            # ── Mode gate ──────────────────────────────────────────────
+            # plan: block every mutating tool (read-only still runs).
+            # accept_edits: read/edit run; destructive tools pause for the
+            #   user's Approve/Deny. agent: everything runs (gate -> "run").
+            # We append exactly one tool result per block on every path, so
+            # native tool-call ↔ result alignment is preserved.
+            _gate = gate_decision(mode, block.tool_type)
+            if _gate == "block":
+                total_tool_calls -= 1  # not executed — don't count against budget
+                _gate_msg = (
+                    "[PLAN MODE — action blocked] The tool was NOT run and nothing was "
+                    "changed. Stop calling tools now. Reply to the user with a short, "
+                    "numbered plan in plain text describing the steps you would take "
+                    "(include this action as one of the steps). Do not pretend you ran "
+                    "anything or invent output."
+                )
+                yield f'data: {json.dumps({"type": "plan_skipped", "tool": block.tool_type, "command": cmd_display, "round": round_num})}\n\n'
+                tool_results.append(_gate_msg)
+                tool_result_texts.append(_gate_msg)
+                continue
+            if _gate == "approve":
+                _approval_id, _approval_fut = create_approval()
+                yield f'data: {json.dumps({"type": "tool_approval_request", "tool": block.tool_type, "command": cmd_display, "risk": classify_tool(block.tool_type), "approval_id": _approval_id, "round": round_num})}\n\n'
+                _decision = await wait_for_approval(_approval_id, _approval_fut)
+                if _decision != "approve":
+                    total_tool_calls -= 1
+                    _gate_msg = (
+                        f"[Denied] The user declined to run this {block.tool_type} action. "
+                        "Do not retry it; continue without it or ask how they'd like to proceed."
+                    )
+                    yield f'data: {json.dumps({"type": "tool_denied", "tool": block.tool_type, "command": cmd_display, "round": round_num})}\n\n'
+                    tool_results.append(_gate_msg)
+                    tool_result_texts.append(_gate_msg)
+                    continue
+                yield f'data: {json.dumps({"type": "tool_approved", "tool": block.tool_type, "command": cmd_display, "round": round_num})}\n\n'
 
             yield (
                 f'data: {json.dumps({"type": "tool_start", "tool": block.tool_type, "command": cmd_display, "round": round_num})}\n\n'

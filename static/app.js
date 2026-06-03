@@ -3786,6 +3786,78 @@ function startOdysseusApp() {
   // Expose the recorder so Settings can push the new STT provider live (no reload)
   window.voiceRecorderModule = voiceRecorderModule;
 
+  // ── Agent execution-mode picker (Auto / Accept Edits / Plan) ──
+  (function initAgentModePicker() {
+    const wrap = document.getElementById('agentmode-wrap');
+    const modeBtn = document.getElementById('agentmode-btn');
+    const menu = document.getElementById('agentmode-menu');
+    const labelEl = document.getElementById('agentmode-label');
+    if (!wrap || !modeBtn || !menu || !labelEl) return;
+    const LABELS = { agent: 'Auto', accept_edits: 'Accept Edits', plan: 'Plan' };
+    const ORDER = ['agent', 'accept_edits', 'plan'];
+    let mode = localStorage.getItem('odysseus_agent_mode') || 'agent';
+    if (!ORDER.includes(mode)) mode = 'agent';
+
+    window._getAgentMode = () => mode;
+
+    function render() {
+      labelEl.textContent = LABELS[mode];
+      wrap.dataset.mode = mode;
+      modeBtn.title = mode === 'plan'
+        ? 'Plan mode — read-only; proposes a plan, changes nothing'
+        : mode === 'accept_edits'
+          ? 'Accept Edits — auto-runs edits; asks before shell / email / destructive actions'
+          : 'Auto — runs every tool automatically';
+      menu.querySelectorAll('.agentmode-item').forEach(it =>
+        it.classList.toggle('active', it.dataset.agentmode === mode));
+    }
+    function setMode(m) {
+      if (!ORDER.includes(m)) return;
+      mode = m;
+      localStorage.setItem('odysseus_agent_mode', m);
+      render();
+      // Keep the Settings default selector (if open) in sync
+      const sel = document.getElementById('set-defaultAgentMode');
+      if (sel && sel.value !== m) sel.value = m;
+    }
+    window._setAgentMode = setMode;
+
+    const closeMenu = () => { menu.classList.add('hidden'); modeBtn.setAttribute('aria-expanded', 'false'); };
+    const openMenu = () => { menu.classList.remove('hidden'); modeBtn.setAttribute('aria-expanded', 'true'); };
+
+    modeBtn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      menu.classList.contains('hidden') ? openMenu() : closeMenu();
+    });
+    menu.querySelectorAll('.agentmode-item').forEach(it =>
+      it.addEventListener('click', (e) => { e.preventDefault(); setMode(it.dataset.agentmode); closeMenu(); }));
+    document.addEventListener('click', (e) => { if (!wrap.contains(e.target)) closeMenu(); });
+
+    // Hide the picker in Chat mode (no tools → gating is moot). Track the
+    // existing Agent/Chat toggle by its active class.
+    function syncVisibility() {
+      const chatBtn = document.getElementById('mode-chat-btn');
+      wrap.style.display = (chatBtn && chatBtn.classList.contains('active')) ? 'none' : '';
+    }
+    ['mode-agent-btn', 'mode-chat-btn'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) b.addEventListener('click', () => setTimeout(syncVisibility, 0));
+    });
+
+    // Shift+Tab cycles modes when the composer is focused (like Claude Code).
+    if (messageInput) {
+      messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          e.preventDefault();
+          setMode(ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length]);
+        }
+      });
+    }
+
+    render();
+    syncVisibility();
+  })();
+
   // Initial icon state
   _updateSendBtnIcon();
 
